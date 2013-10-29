@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "/usr/share/varnish/reload-vcl" | doatt varnish
+echo "Reloaded varnish config"

@@ -1,0 +1,8 @@
+#!/bin/bash
+dodns-config
+dodns-reload
+
+dovarnish-config
+dovarnish-reload
+
+echo "Updated DNS and varnish"
