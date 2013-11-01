@@ -7,7 +7,7 @@ import json
 output = subprocess.check_output(["docker", "inspect", sys.argv[1]])
 info = json.loads(output)
 
-if len(info) == 0:
+if len(info) == 0 or info[0]["State"]["Running"] == False:
 	print >> sys.stderr, "Searching for container by name..."
 	output = subprocess.check_output(["docker", "ps", "-notrunc"])
 	output = output.split("\n")
