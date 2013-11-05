@@ -23,7 +23,7 @@ while parent:
 	else:
 		parent = None
 
-print parents
+parents.reverse()
 
 for parent in parents:
 	# TODO: assume unprefixed directorynames. maybe remove this
