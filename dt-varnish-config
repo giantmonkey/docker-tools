@@ -11,7 +11,7 @@ def parse_arguments():
 		def __copy__(self):
 			return []
 
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(description="Rewrite the backends and vhosts in the varnish config file for docker containers.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--container", type=str, default="varnish", help="id or name of varnish container")
 	parser.add_argument("--graph-storage-dir", type=str, default="/var/lib/docker", help="docker graph storage directory")
 	parser.add_argument("--backends-file", type=str, default="/etc/varnish/docker_backends.vcl", help="output file for backends in container")

@@ -9,9 +9,9 @@ def parse_arguments():
                 def __copy__(self):
                         return []
 
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(description="Rewrite the DNS config file for docker containers.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--hosts-file", type=str, default="/etc/hosts.docker", help="output file for hosts")
-	parser.add_argument("--domain", type=str, default=DefaultList([socket.getfqdn()]), action="append", dest="domains", help="domain name to append to each host")
+	parser.add_argument("--domain", type=str, default=DefaultList([socket.getfqdn()]), action="append", dest="domains", help="domain name to append to each host. may be specified multiple times")
 	parser.add_argument("--dry-run", action="store_true", help="only print to stdout instead of writing to file")
 
 	return parser.parse_args()

@@ -4,7 +4,7 @@ import argparse
 import subprocess
 
 def parse_arguments():
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(description="Reload the varnish config.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument("--container", type=str, default="varnish", help="id or name of varnish container")
 
         return parser.parse_args()
