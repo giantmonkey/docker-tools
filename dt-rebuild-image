@@ -1,0 +1,68 @@
+#!/usr/bin/python
+
+import argparse
+import subprocess
+import os
+import re
+import docker
+
+def parse_arguments():
+	class DefaultList(list):
+		def __copy__(self):
+			return []
+
+	parser = argparse.ArgumentParser(description="Rebuild a docker image from the corresponding Dockerfile", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument("image", type=str, help="image name")
+	parser.add_argument("--dir", type=str, default=DefaultList([os.path.expanduser("~/docker-files"), "/var/lib/docker-files"]), action="append", dest="dirs", help="base directory that contains directories with Dockerfiles")
+	parser.add_argument("--dry-run", action="store_true", help="only print to stdout instead of writing to file")
+
+	return parser.parse_args()
+
+
+def get_docker_file_path(args, image):
+	for dir in args.dirs:
+		parts = image.split("/")
+		# consider full image name and last part of image name if there is a /
+		subdirs = [parts] + [parts[1:]]
+		for subdir in subdirs: 
+			path = os.path.join(dir, *(subdir + ["Dockerfile"]))
+			if os.path.exists(path):
+				return path
+
+	raise RuntimeError("cannot find Dockerfile")
+			
+		
+def get_docker_images(args):
+	images = []
+	image = args.image
+
+	while image:
+		images.append(image)
+		with open(get_docker_file_path(args, image)) as f:
+			match = re.search(r"^FROM\s+([^\s]+/[^\s]+)", f.read())
+			if match:
+				image = match.group(1)
+			else:
+				# stop is there is no FROM line or we have an image without prefix
+				image = None
+
+	return images
+
+
+def rebuild_image(args, image):
+	directory = os.path.dirname(get_docker_file_path(args, image))
+        print "building image", image, "(%s)" % directory, "..."
+	
+	if not args.dry_run:
+		subprocess.check_call(["docker", "build", "-t", image, directory])
+
+
+def rebuild_images(args):
+	images = get_docker_images(args)
+	for image in reversed(images):
+		rebuild_image(args, image)
+
+
+args = parse_arguments()
+rebuild_images(args)
+
