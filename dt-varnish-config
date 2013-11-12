@@ -28,10 +28,22 @@ def get_varnish_rootfs(args, client):
 	return os.path.join(args.graph_storage_dir, "containers", inspect["ID"], "rootfs")
 
 
-def get_docker_backends(args, client):
+def get_domains(args, name, inspect=None):
+	domains = set()
+	domains.add(name)
+	for domain in args.domains:
+		domains.add(name + "." + domain)
+	if inspect and inspect["Config"]["Hostname"]:
+		domains.add(inspect["Config"]["Hostname"])
+
+	return domains
+
+
+def get_docker_backends_and_directors(args, client):
 	containers = client.containers()
 
 	backends = []
+	directors = {}
 	for container in containers:
 		inspect = client.inspect_container(container["Id"])
 		name = inspect["Name"].lstrip("/")
@@ -40,20 +52,33 @@ def get_docker_backends(args, client):
 		backend["name"] = re.sub(r"[^\w]", "_", name) 
 		backend["host"] = name
 		backend["port"] = "80"
-		backend["domains"] = set()
-		backend["domains"].add(name)
-		for domain in args.domains:
-			backend["domains"].add(name + "." + domain)
-	  	if inspect["Config"]["Hostname"]:
-			backend["domains"].add(inspect["Config"]["Hostname"])
+
+		# create director if necessary
+		match = re.match(r"(.*)-\d+$", name)
+		if match:
+			director_name = match.group(1)
+
+			director = directors.setdefault(director_name, {})
+			director["name"] = director_name
+			director.setdefault("domains", set())
+			director["domains"] = director["domains"] | get_domains(args, director_name, inspect)
+			director.setdefault("backend_names", [])
+			director["backend_names"].append(backend["name"])
+	
+			# do not use hostname as domain because director uses it	
+			backend["domains"] = get_domains(args, name)
+		else:
+			backend["domains"] = get_domains(args, name, inspect)
 
 		backends.append(backend)
 
-	return backends
+	return (backends, directors.values())
 
 
-def write_backends_file(args, rootfs, backends):
+def write_backends_file(args, rootfs, backends, directors):
 	output = "\n".join(["backend %(name)s { .host = \"%(host)s\"; .port = \"%(port)s\"; }" % backend for backend in backends])
+	output += "\n\n"
+	output += "\n".join(["director %(name)s round-robin {\n%(backends)s\n}" % {"name": director["name"], "backends": "\n".join(["  { .backend = %s; }" % backend_name for backend_name in director["backend_names"]])} for director in directors]) 
 
 	if args.dry_run:
 		print output
@@ -63,9 +88,9 @@ def write_backends_file(args, rootfs, backends):
 		print "Replaced varnish backends in %s" % args.backends_file
 
 
-def write_vhosts_file(args, rootfs, vhosts):
+def write_vhosts_file(args, rootfs, backends, directors):
 	output = "sub vcl_recv {\n"
-	output += "\n".join(["  else if (req.http.host ~ \"(?i)(%(re)s)$\") {\n    set req.backend = %(name)s;\n  }" % {"re": "|".join([re.escape(domain) for domain in vhost["domains"]]), "name": vhost["name"]} for vhost in vhosts]) 
+	output += "\n".join(["  else if (req.http.host ~ \"(?i)(%(re)s)$\") {\n    set req.backend = %(name)s;\n  }" % {"re": "|".join([re.escape(domain) for domain in backend["domains"]]), "name": backend["name"]} for backend in directors + backends]) 
 	output += "\n  else {\n    error 404 \"Unknown virtual host\";\n  }\n}";
 
 	# replace first else if with just if
@@ -82,7 +107,7 @@ def write_vhosts_file(args, rootfs, vhosts):
 args = parse_arguments()
 client = docker.Client()
 rootfs = get_varnish_rootfs(args, client)
-backends = get_docker_backends(args, client)
-write_backends_file(args, rootfs, backends)
-write_vhosts_file(args, rootfs, backends)
+backends, directors = get_docker_backends_and_directors(args, client)
+write_backends_file(args, rootfs, backends, directors)
+write_vhosts_file(args, rootfs, backends, directors)
 
