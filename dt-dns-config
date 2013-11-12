@@ -1,12 +1,17 @@
 #!/usr/bin/python
 
 import argparse
+import socket
 import docker
 
 def parse_arguments():
+        class DefaultList(list):
+                def __copy__(self):
+                        return []
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--hosts-file", type=str, default="/etc/hosts.docker", help="output file for hosts")
-	parser.add_argument("--domain", type=str, help="domain name to append to each host")
+	parser.add_argument("--domain", type=str, default=DefaultList([socket.getfqdn()]), action="append", dest="domains", help="domain name to append to each host")
 	parser.add_argument("--dry-run", action="store_true", help="only print to stdout instead of writing to file")
 
 	return parser.parse_args()
@@ -19,15 +24,16 @@ def get_docker_hosts(args):
 	hosts = []
 	for container in containers:
 		inspect = client.inspect_container(container["Id"])
+		name = inspect["Name"].lstrip("/")
 
 		host = {}
 		host["ip"] = inspect["NetworkSettings"]["IPAddress"]
-		host["names"] = []
-		host["names"].append(inspect["Name"].lstrip("/"))
-		if args.domain:
-			host["names"].append(inspect["Name"].lstrip("/") + "." + args.domain)
+		host["names"] = set()
+		host["names"].add(name)
+		for domain in args.domains:
+			host["names"].add(name + "." + domain)
 	  	if inspect["Config"]["Hostname"]:
-			host["names"].append(inspect["Config"]["Hostname"])
+			host["names"].add(inspect["Config"]["Hostname"])
 
 		hosts.append(host)
 
