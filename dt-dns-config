@@ -1,0 +1,54 @@
+#!/usr/bin/python
+
+import argparse
+import docker
+
+def parse_arguments():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--hosts-file", type=str, default="/etc/hosts.docker", help="output file for hosts")
+	parser.add_argument("--domain", type=str, help="domain name to append to each host")
+	parser.add_argument("--dry-run", action="store_true", help="only print to stdout instead of writing to file")
+
+	return parser.parse_args()
+
+
+def get_docker_hosts(args):
+	client = docker.Client()
+	containers = client.containers()
+
+	hosts = []
+	for container in containers:
+		inspect = client.inspect_container(container["Id"])
+
+		host = {}
+		host["ip"] = inspect["NetworkSettings"]["IPAddress"]
+		host["names"] = []
+		host["names"].append(inspect["Name"].lstrip("/"))
+		if args.domain:
+			host["names"].append(inspect["Name"].lstrip("/") + "." + args.domain)
+	  	if inspect["Config"]["Hostname"]:
+			host["names"].append(inspect["Config"]["Hostname"])
+
+		hosts.append(host)
+
+	return hosts
+
+
+def write_hosts_file(args, hosts):
+	name_widths = [len(name) for host in hosts for name in host["names"]]
+	max_name_width = max(name_widths) + 4
+	lines = ["%(ip)-20s%(names)s" % {"ip": host["ip"], "names": "".join(["%-*s" % (max_name_width, name) for name in host["names"]])} for host in hosts] 
+	output = "\n".join(lines)
+
+	if args.dry_run:
+		print output
+	else:
+		with open(args.hosts_file, "w") as f:
+			f.write(output)
+		print "Replaced DNS config in %s" % args.hosts_file
+
+
+args = parse_arguments()
+hosts = get_docker_hosts(args)
+write_hosts_file(args, hosts)
+
