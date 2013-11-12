@@ -1,0 +1,23 @@
+#!/usr/bin/python
+
+import argparse
+import os
+import docker
+
+def parse_arguments():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("container", help="id or name of container")
+
+	return parser.parse_args()
+
+
+def attach_container(args):
+	client = docker.Client()
+	inspect = client.inspect_container(args.container)
+
+	# execution changes to lxc-attach here
+	os.execlp("lxc-attach", "lxc-attach", "-n", inspect["ID"])
+
+
+args = parse_arguments()
+attach_container(args)
