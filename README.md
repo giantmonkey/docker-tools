@@ -5,6 +5,10 @@ A suite of tools to help with docker deployments in a production setting.
 
 All tools support a `--help` option that explains the individual arguments.
 
+You need to install [docker-py](https://github.com/dotcloud/docker-py) first:
+
+    easy_install docker-py
+
 
 ## dt-rebuild-image
 
