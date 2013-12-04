@@ -70,6 +70,8 @@ Again you can specify multiple domains:
 
     dt-varnish-config --container varnish --domain docker1.giantmonkey.de --domain docker2.giantmonkey.de
     
+If you have multiple container for the same service then make sure that their names have the same prefix followed by a number. For example nginx-1 and nginx-2. Both containers will then be load balanced by varnish for the domain nginx.docker.giantmonkey.de.
+    
 
 ## dt-varnish-reload
 
