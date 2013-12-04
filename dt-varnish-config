@@ -13,7 +13,7 @@ def parse_arguments():
 
 	parser = argparse.ArgumentParser(description="Rewrite the backends and vhosts in the varnish config file for docker containers.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--container", type=str, default="varnish", help="id or name of varnish container")
-	parser.add_argument("--graph-storage-dir", type=str, default="/var/lib/docker", help="docker graph storage directory")
+	parser.add_argument("--docker-storage-dir", type=str, default="/var/lib/docker/aufs/mnt", help="docker storage directory for container rootfs")
 	parser.add_argument("--backends-file", type=str, default="/etc/varnish/docker_backends.vcl", help="output file for backends in container")
 	parser.add_argument("--vhosts-file", type=str, default="/etc/varnish/docker_vhosts.vcl", help="output file for vhosts in container")
 	parser.add_argument("--domain", type=str, default=DefaultList([socket.getfqdn()]), action="append", dest="domains", help="domain name to append to each host")
@@ -25,7 +25,7 @@ def parse_arguments():
 def get_varnish_rootfs(args, client):
 	inspect = client.inspect_container(args.container)
 	
-	return os.path.join(args.graph_storage_dir, "containers", inspect["ID"], "rootfs")
+	return os.path.join(args.docker_storage_dir, inspect["ID"])
 
 
 def get_domains(args, name, inspect=None):
@@ -33,8 +33,8 @@ def get_domains(args, name, inspect=None):
 	domains.add(name)
 	for domain in args.domains:
 		domains.add(name + "." + domain)
-	if inspect and inspect["Config"]["Hostname"]:
-		domains.add(inspect["Config"]["Hostname"])
+	if inspect and inspect["Config"]["Hostname"] and inspect["Config"]["Domainname"]:
+		domains.add(inspect["Config"]["Hostname"] + "." + inspect["Config"]["Domainname"])
 
 	return domains
 
@@ -55,7 +55,8 @@ def get_docker_backends_and_directors(args, client):
 			name += "-0"
 
 		backend = {}
-		backend["name"] = re.sub(r"[^\w]", "_", name) 
+		# escape name for varnish
+		backend["name"] = re.sub(r"[^0-9a-zA-Z_]", "_", name) 
 		backend["host"] = host
 		backend["port"] = "80"
 
@@ -64,7 +65,8 @@ def get_docker_backends_and_directors(args, client):
 		director_name = match.group(1)
 
 		director = directors.setdefault(director_name, {})
-		director["name"] = director_name
+		# escape name for varnish
+		director["name"] = re.sub(r"[^0-9a-zA-Z_]", "_", director_name) 
 		director.setdefault("domains", set())
 		director["domains"] = director["domains"] | get_domains(args, director_name, inspect)
 		director.setdefault("backend_names", [])
