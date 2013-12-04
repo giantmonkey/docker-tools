@@ -47,29 +47,31 @@ def get_docker_backends_and_directors(args, client):
 	for container in containers:
 		inspect = client.inspect_container(container["Id"])
 		name = inspect["Name"].lstrip("/")
+		host = name
+
+		# make sure name ends with a number postfix
+		match = re.match(r"(.*)-\d+$", name)
+		if not match:
+			name += "-0"
 
 		backend = {}
 		backend["name"] = re.sub(r"[^\w]", "_", name) 
-		backend["host"] = name
+		backend["host"] = host
 		backend["port"] = "80"
 
-		# create director if necessary
+		# create director
 		match = re.match(r"(.*)-\d+$", name)
-		if match:
-			director_name = match.group(1)
+		director_name = match.group(1)
 
-			director = directors.setdefault(director_name, {})
-			director["name"] = director_name
-			director.setdefault("domains", set())
-			director["domains"] = director["domains"] | get_domains(args, director_name, inspect)
-			director.setdefault("backend_names", [])
-			director["backend_names"].append(backend["name"])
-	
-			# do not use hostname as domain because director uses it	
-			backend["domains"] = get_domains(args, name)
-		else:
-			backend["domains"] = get_domains(args, name, inspect)
+		director = directors.setdefault(director_name, {})
+		director["name"] = director_name
+		director.setdefault("domains", set())
+		director["domains"] = director["domains"] | get_domains(args, director_name, inspect)
+		director.setdefault("backend_names", [])
+		director["backend_names"].append(backend["name"])
 
+		# do not use hostname as domain for backend because director uses it	
+		backend["domains"] = get_domains(args, name)
 		backends.append(backend)
 
 	return (backends, directors.values())
