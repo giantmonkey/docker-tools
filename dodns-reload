@@ -1,3 +1,0 @@
-#!/bin/sh
-pkill -HUP dnsmasq
-echo "Reloaded DNS config from /etc/hosts"
