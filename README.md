@@ -78,3 +78,18 @@ If you have multiple container for the same service then make sure that their na
 Reload the varnish config.
 
 This command needs to be run after `dt-varnish-config`.
+
+
+
+# Maintainers
+
+[Giant Monkey Software Engineering GmbH](http://giantmonkey.de)
+
+Lion Vollnhals (https://github.com/vollnhals/)
+
+Paul Menzel (https://github.com/paulepanter)
+
+
+# License
+
+Apache 2.0 License. Copyright 2013 Giant Monkey Software Engineering GmbH. http://giantmonkey.de
